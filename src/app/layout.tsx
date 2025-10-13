@@ -4,6 +4,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import Sidebar from "@/components/Sidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
+import { getFeeds } from "@/lib/Feeds";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -25,8 +26,10 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const feedsPromise = getFeeds();
+
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased flex flex-row`}>
         <ThemeProvider
           attribute="data-theme"
@@ -35,7 +38,7 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <SidebarProvider>
-            <Sidebar className="flex-1" />
+            <Sidebar feedsPromise={feedsPromise} />
             <main className="flex-4">{children}</main>
           </SidebarProvider>
         </ThemeProvider>

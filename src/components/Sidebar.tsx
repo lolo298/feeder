@@ -14,27 +14,20 @@ import {
   useSidebar,
 } from "./ui/sidebar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible";
+import { sourcesTable } from "@/db/schema";
+import { Suspense, use } from "react";
+import { Skeleton } from "./ui/skeleton";
+import Link from "next/link";
 
 type SidebarProps = {
   className: string;
 };
 
-function MainSidebar({ className }: SidebarProps) {
-  const feeds = [
-    {
-      groupName: "AI",
-      sources: [{ name: "medium.com" }, { name: "bytes.dev" }, { name: "dev.to" }],
-    },
-    {
-      groupName: "Webdev",
-      sources: [{ name: "medium.com" }, { name: "bytes.dev" }, { name: "dev.to" }],
-    },
-  ];
-
-  return <Content feeds={feeds} />;
-}
-
-function Content({ feeds }: { feeds: { groupName: string; sources: { name: string }[] }[] }) {
+function MainSidebar({
+  feedsPromise,
+}: {
+  feedsPromise: Promise<(typeof sourcesTable.$inferSelect)[]>;
+}) {
   const { open } = useSidebar();
 
   return (
@@ -46,8 +39,10 @@ function Content({ feeds }: { feeds: { groupName: string; sources: { name: strin
       {open && (
         <SidebarContent>
           <SidebarGroup>
-            <Button variant="ghost" className="justify-start">
-              <Calendar /> Today
+            <Button variant="ghost" className="justify-start" asChild>
+              <Link href="/today">
+                <Calendar /> Today
+              </Link>
             </Button>
             <Button variant="ghost" className="justify-start">
               <Wifi /> Source
@@ -61,31 +56,9 @@ function Content({ feeds }: { feeds: { groupName: string; sources: { name: strin
             <SidebarGroupContent>
               <SidebarMenu>
                 <SidebarMenuItem>
-                  {feeds.map((feed) => {
-                    return (
-                      <Collapsible key={feed.groupName}>
-                        <CollapsibleTrigger asChild>
-                          <Button className="w-full justify-start" variant="ghost">
-                            <span>{feed.groupName}</span>
-                            <ChevronDown />
-                          </Button>
-                        </CollapsibleTrigger>
-                        <CollapsibleContent className="flex flex-col items-start pl-4">
-                          {feed.sources.map((source) => {
-                            return (
-                              <Button
-                                variant="ghost"
-                                key={source.name}
-                                className="text-sm w-full justify-start"
-                              >
-                                {source.name}
-                              </Button>
-                            );
-                          })}
-                        </CollapsibleContent>
-                      </Collapsible>
-                    );
-                  })}
+                  <Suspense fallback={<Skeleton className="h-9 px-4 py-2" />}>
+                    <Feeds feedsPromise={feedsPromise} />
+                  </Suspense>
                 </SidebarMenuItem>
               </SidebarMenu>
             </SidebarGroupContent>
@@ -93,6 +66,30 @@ function Content({ feeds }: { feeds: { groupName: string; sources: { name: strin
         </SidebarContent>
       )}
     </Sidebar>
+  );
+}
+
+function Feeds({ feedsPromise }: { feedsPromise: Promise<(typeof sourcesTable.$inferSelect)[]> }) {
+  const feedsData = use(feedsPromise);
+
+  return (
+    <Collapsible key="mainGroups">
+      <CollapsibleTrigger asChild>
+        <Button className="w-full justify-start" variant="ghost">
+          <span>mainGroups</span>
+          <ChevronDown />
+        </Button>
+      </CollapsibleTrigger>
+      <CollapsibleContent className="flex flex-col items-start pl-4">
+        {feedsData.map((source) => {
+          return (
+            <Button variant="ghost" key={source.name} className="text-sm w-full justify-start">
+              {source.name}
+            </Button>
+          );
+        })}
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
 
