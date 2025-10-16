@@ -1,6 +1,6 @@
 "use client";
 import { Button } from "./ui/button";
-import { Calendar, Wifi, Search, ChevronDown } from "lucide-react";
+import { Calendar, Wifi, Search, ChevronDown, ChevronRight } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -14,26 +14,29 @@ import {
   useSidebar,
 } from "./ui/sidebar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible";
-import { sourcesTable } from "@/db/schema";
-import { Suspense, use } from "react";
+import { feedsTable, sourcesTable } from "@/db/schema";
+import { Suspense, use, useEffect, useState } from "react";
 import { Skeleton } from "./ui/skeleton";
 import Link from "next/link";
+import { authClient, Session } from "@/lib/auth-client";
+import { InferSelectModel } from "drizzle-orm";
+import type { getFeeds } from "@/lib/Feeds";
 
-type SidebarProps = {
-  className: string;
-};
-
-function MainSidebar({
-  feedsPromise,
-}: {
-  feedsPromise: Promise<(typeof sourcesTable.$inferSelect)[]>;
-}) {
+function MainSidebar({ feedsPromise }: { feedsPromise: ReturnType<typeof getFeeds> }) {
   const { open } = useSidebar();
+  const { data } = authClient.useSession();
+  const feeds = use(feedsPromise);
+
+  console.log(feeds);
 
   return (
     <Sidebar collapsible="icon" className="transition-all">
       <SidebarHeader className={`flex-row ${open ? "justify-between" : "justify-end"}`}>
-        {open && <div className="text-nowrap">Lorenzo Aoulini</div>}
+        {open && (
+          <Button variant="ghost" className="flex-1" asChild>
+            {data?.user ? <span>{data.user.name}</span> : <Link href="/auth">Login</Link>}
+          </Button>
+        )}
         <SidebarTrigger />
       </SidebarHeader>
       {open && (
@@ -57,7 +60,9 @@ function MainSidebar({
               <SidebarMenu>
                 <SidebarMenuItem>
                   <Suspense fallback={<Skeleton className="h-9 px-4 py-2" />}>
-                    <Feeds feedsPromise={feedsPromise} />
+                    {feeds?.map((feed) => (
+                      <Feeds key={feed.id} feed={feed} />
+                    ))}
                   </Suspense>
                 </SidebarMenuItem>
               </SidebarMenu>
@@ -69,22 +74,35 @@ function MainSidebar({
   );
 }
 
-function Feeds({ feedsPromise }: { feedsPromise: Promise<(typeof sourcesTable.$inferSelect)[]> }) {
-  const feedsData = use(feedsPromise);
-
+function Feeds({ feed }: { feed: NonNullable<Awaited<ReturnType<typeof getFeeds>>>[number] }) {
+  const [open, setOpen] = useState<boolean>();
   return (
-    <Collapsible key="mainGroups">
-      <CollapsibleTrigger asChild>
-        <Button className="w-full justify-start" variant="ghost">
-          <span>mainGroups</span>
-          <ChevronDown />
-        </Button>
-      </CollapsibleTrigger>
+    <Collapsible onOpenChange={(open) => setOpen(open)}>
+      <Button className="w-full justify-start p-0" variant="ghost" asChild>
+        <div>
+          <CollapsibleTrigger className="h-full aspect-square flex justify-center items-center cursor-pointer py-2">
+            <ChevronRight
+              style={{
+                transition: "transform .2s ease-in-out",
+                transform: `rotate(${open ? "90deg" : "0deg"})`,
+              }}
+            />
+          </CollapsibleTrigger>
+          <Link href={`/feed/${feed.id}`} className="flex-1 py-2">
+            {feed.name}
+          </Link>
+        </div>
+      </Button>
       <CollapsibleContent className="flex flex-col items-start pl-4">
-        {feedsData.map((source) => {
+        {feed.feedsToSources.map(({ source }) => {
           return (
-            <Button variant="ghost" key={source.name} className="text-sm w-full justify-start">
-              {source.name}
+            <Button
+              variant="ghost"
+              key={source.name}
+              className="text-sm w-full justify-start"
+              asChild
+            >
+              <Link href={`/feed/${feed.id}/source/${feed.id}`}>{source.name}</Link>
             </Button>
           );
         })}

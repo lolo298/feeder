@@ -1,8 +1,9 @@
 import "dotenv/config";
-import { authorsTable, postsTable, sourcesTable } from "@/db/schema";
+import { authorsTable, feedsTable, feedsToSources, postsTable, sourcesTable } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/libsql";
 import { XMLParser } from "fast-xml-parser";
+import { session, user } from "@/db/schema-auth";
 
 (async () => {
   const db = drizzle({ connection: process.env.DB_FILE_NAME!, casing: "snake_case" });
@@ -16,7 +17,7 @@ import { XMLParser } from "fast-xml-parser";
       iconUrl: "https://selfh.st/favicon.png",
     },
   ];
-
+  let insertedSources: (typeof sourcesTable.$inferSelect)[] = [];
   for (const source of sources) {
     const exist = await db
       .select()
@@ -66,6 +67,47 @@ import { XMLParser } from "fast-xml-parser";
     }
 
     await db.insert(postsTable).values(toInsert);
-    await db.update(sourcesTable).set({ checkedAt: new Date() });
+    insertedSources = await db.update(sourcesTable).set({ checkedAt: new Date() }).returning();
   }
+
+  const userData = [
+    {
+      id: "kx2rf9zPeM9zmZeFZ8Hq5m9ihIGo3q5b",
+      name: "Anonymous",
+      email: "temp-0jqkdjc4ilgekfln0k20un3mlvyfou2m@http://localhost:3000",
+      emailVerified: false,
+      image: null,
+      createdAt: new Date(1760635635140),
+      updatedAt: new Date(1760635635140),
+      isAnonymous: true,
+    },
+  ];
+  const sessionData = [
+    {
+      id: "fIf4Frw9jJdPNBs63S5y2dksG3cHgRUy",
+      expiresAt: new Date(1761240435367),
+      token: "KkgdTHhsUpIP99naC4fzjjbznhiNgCzY",
+      createdAt: new Date(1760635635367),
+      updatedAt: new Date(1760635635367),
+      ipAddress: "127.0.0.1",
+      userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:143.0) Gecko/20100101 Firefox/143.0",
+      userId: "kx2rf9zPeM9zmZeFZ8Hq5m9ihIGo3q5b",
+    },
+  ];
+
+  await db.insert(user).values(userData);
+  await db.insert(session).values(sessionData);
+
+  const feed = await db
+    .insert(feedsTable)
+    .values({
+      name: "main feed",
+      userId: userData[0].id,
+    })
+    .returning();
+
+  await db.insert(feedsToSources).values({
+    feedId: feed[0].id,
+    sourceId: insertedSources[0].id,
+  });
 })();

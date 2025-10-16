@@ -1,8 +1,12 @@
 import { relations, sql } from "drizzle-orm";
-import { int, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { int, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { user } from "./schema-auth";
+import { nanoid } from "nanoid";
 
 export const sourcesTable = sqliteTable("sources", {
-  id: int().primaryKey({ autoIncrement: true }),
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => nanoid()),
   name: text().notNull(),
   description: text().notNull(),
   url: text().notNull(),
@@ -12,12 +16,10 @@ export const sourcesTable = sqliteTable("sources", {
   iconUrl: text(),
 });
 
-export const sourcesRelations = relations(sourcesTable, ({ many }) => ({
-  posts: many(postsTable),
-}));
-
 export const postsTable = sqliteTable("posts", {
-  id: int().primaryKey({ autoIncrement: true }),
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => nanoid()),
   title: text().notNull(),
   description: text().notNull(),
   postUrl: text().notNull(),
@@ -26,9 +28,40 @@ export const postsTable = sqliteTable("posts", {
   postedAt: int({ mode: "timestamp" }),
   imageUrl: text(),
 
-  sourceId: int().notNull(),
-  authorId: int().notNull(),
+  sourceId: text().notNull(),
+  authorId: text().notNull(),
 });
+
+export const authorsTable = sqliteTable("authors", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => nanoid()),
+  name: text().notNull(),
+});
+
+export const feedsTable = sqliteTable("feeds", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => nanoid()),
+  name: text().notNull(),
+
+  userId: text().notNull(),
+});
+
+export const feedsToSources = sqliteTable(
+  "feeds_to_sources",
+  {
+    feedId: text()
+      .notNull()
+      .references(() => feedsTable.id),
+    sourceId: text()
+      .notNull()
+      .references(() => sourcesTable.id),
+  },
+  (t) => [primaryKey({ columns: [t.feedId, t.sourceId] })]
+);
+
+// ------- RELATIONS -------
 
 export const postsRelations = relations(postsTable, ({ one }) => ({
   source: one(sourcesTable, {
@@ -41,11 +74,34 @@ export const postsRelations = relations(postsTable, ({ one }) => ({
   }),
 }));
 
-export const authorsTable = sqliteTable("authors", {
-  id: int().primaryKey({ autoIncrement: true }),
-  name: text().notNull(),
-});
-
 export const authorsRelations = relations(authorsTable, ({ many }) => ({
   posts: many(postsTable),
+}));
+
+export const sourcesRelations = relations(sourcesTable, ({ many }) => ({
+  posts: many(postsTable),
+  feedsToSources: many(feedsToSources),
+}));
+
+export const feedsRelations = relations(feedsTable, ({ one, many }) => ({
+  user: one(user, {
+    fields: [feedsTable.userId],
+    references: [user.id],
+  }),
+  feedsToSources: many(feedsToSources),
+}));
+
+export const userRelations = relations(user, ({ many }) => ({
+  feeds: many(feedsTable),
+}));
+
+export const feedsToSourcesRelations = relations(feedsToSources, ({ one }) => ({
+  feed: one(feedsTable, {
+    fields: [feedsToSources.feedId],
+    references: [feedsTable.id],
+  }),
+  source: one(sourcesTable, {
+    fields: [feedsToSources.sourceId],
+    references: [sourcesTable.id],
+  }),
 }));
