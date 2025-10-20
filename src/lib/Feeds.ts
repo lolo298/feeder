@@ -18,8 +18,6 @@ export async function getFeeds(userId?: UserId) {
     where: eq(feedsTable.userId, userId),
   });
 
-  console.log(feeds);
-
   // await new Promise((r) => setTimeout(r, 10000));
 
   return feeds;

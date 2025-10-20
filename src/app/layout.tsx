@@ -7,6 +7,8 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 import { getFeeds } from "@/lib/Feeds";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import ContextProviders from "./ContextProviders";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -36,17 +38,10 @@ export default async function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased flex flex-row`}>
-        <ThemeProvider
-          attribute="data-theme"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          <SidebarProvider>
-            <Sidebar feedsPromise={feedsPromise} />
-            <main className="flex-4">{children}</main>
-          </SidebarProvider>
-        </ThemeProvider>
+        <ContextProviders>
+          <Sidebar feedsPromise={feedsPromise} />
+          <main className="flex-4">{children}</main>
+        </ContextProviders>
       </body>
     </html>
   );

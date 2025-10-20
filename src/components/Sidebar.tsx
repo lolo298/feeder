@@ -27,8 +27,6 @@ function MainSidebar({ feedsPromise }: { feedsPromise: ReturnType<typeof getFeed
   const { data } = authClient.useSession();
   const feeds = use(feedsPromise);
 
-  console.log(feeds);
-
   return (
     <Sidebar collapsible="icon" className="transition-all">
       <SidebarHeader className={`flex-row ${open ? "justify-between" : "justify-end"}`}>
@@ -102,7 +100,7 @@ function Feeds({ feed }: { feed: NonNullable<Awaited<ReturnType<typeof getFeeds>
               className="text-sm w-full justify-start"
               asChild
             >
-              <Link href={`/feed/${feed.id}/source/${feed.id}`}>{source.name}</Link>
+              <Link href={`/feed/${feed.id}/source/${source.id}`}>{source.name}</Link>
             </Button>
           );
         })}
