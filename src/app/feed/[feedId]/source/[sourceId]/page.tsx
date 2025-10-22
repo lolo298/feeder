@@ -1,6 +1,6 @@
 import { dehydrate, HydrationBoundary, isServer, QueryClient } from "@tanstack/react-query";
 import Source from "./_page";
-import { getSourcePosts } from "./api";
+import { getSourceWithPostsWithAuthor } from "./api";
 
 async function ServerSource({
   params: serverParams,
@@ -11,8 +11,8 @@ async function ServerSource({
   const queryClient = new QueryClient();
 
   await queryClient.prefetchQuery({
-    queryKey: ["sourcePosts", params.sourceId],
-    queryFn: getSourcePosts,
+    queryKey: ["source", params.sourceId],
+    queryFn: getSourceWithPostsWithAuthor,
   });
 
   return (

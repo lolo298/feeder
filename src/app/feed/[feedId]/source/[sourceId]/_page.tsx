@@ -1,12 +1,14 @@
 "use client";
 import { useQuery } from "@tanstack/react-query";
-import { getSourcePosts } from "./api";
+import { getSourceWithPostsWithAuthor } from "./api";
+import CardView from "@/components/views/CardView";
+import { Separator } from "@/components/ui/separator";
 
 function Source({ params }: { params: { feedId: string; sourceId: string } }) {
   const { feedId, sourceId } = params;
   const { data, isLoading, isError, isSuccess } = useQuery({
-    queryKey: ["sourcePosts", sourceId],
-    queryFn: getSourcePosts,
+    queryKey: ["source", sourceId],
+    queryFn: getSourceWithPostsWithAuthor,
   });
   console.log(`data: `, isLoading, data);
 
@@ -14,14 +16,16 @@ function Source({ params }: { params: { feedId: string; sourceId: string } }) {
   if (isError || !isSuccess) return <p>Error</p>;
 
   return (
-    <div>
-      <p>
-        {feedId} - {sourceId}
-      </p>
-      <div>
-        {data.map((post) => (
-          <p>{post.title}</p>
-        ))}
+    <div className="flex flex-col h-screen">
+      <div className="flex-1">
+        <div className="flex p-4">
+          <h1 className="font-bold text-4xl px-6">{data.name}</h1>
+        </div>
+        <Separator />
+        <div className="h-64"></div>
+        <div className="flex justify-center">
+          <CardView posts={data.posts} />
+        </div>
       </div>
     </div>
   );

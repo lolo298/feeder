@@ -1,10 +1,12 @@
-import type { db } from "@/lib/db";
-import { isServer } from "@tanstack/react-query";
+import { SourceWithPostsWithAuthor } from "@/types";
+import { QueryFunctionContext } from "@tanstack/react-query";
 
-export async function getSourcePosts({ queryKey }) {
+export async function getSourceWithPostsWithAuthor({
+  queryKey,
+}: QueryFunctionContext): Promise<SourceWithPostsWithAuthor> {
   const [_key, sourceId] = queryKey;
-  const res = await fetch(`/api/source/${sourceId}/posts`);
-  const json = (await res.json()) as Awaited<ReturnType<typeof db.query.postsTable.findMany>>;
+  const res = await fetch(`/api/source/${sourceId}`);
+  const json = await res.json();
 
   return json;
 }
