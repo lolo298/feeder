@@ -4,9 +4,7 @@ import { getSourceWithPostsWithAuthor } from "./api";
 
 async function ServerSource({
   params: serverParams,
-}: {
-  params: Promise<{ feedId: string; sourceId: string }>;
-}) {
+}: PageProps<"/feed/[feedId]/source/[sourceId]">) {
   const params = await serverParams;
   const queryClient = new QueryClient();
 

@@ -30,16 +30,12 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const user = await auth.api.getSession({
-    headers: await headers(),
-  });
-  const feedsPromise = getFeeds(user?.user.id);
 
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased flex flex-row`}>
         <ContextProviders>
-          <Sidebar feedsPromise={feedsPromise} />
+          <Sidebar />
           <main className="flex-4">{children}</main>
         </ContextProviders>
       </body>

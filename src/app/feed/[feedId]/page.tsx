@@ -1,4 +1,4 @@
-async function Feed({ params }: { params: Promise<{ feedId: string }> }) {
+async function Feed({ params }: PageProps<'/feed/[feedId]'>) {
   const { feedId } = await params;
   return <div>{feedId}</div>;
 }
