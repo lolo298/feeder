@@ -1,6 +1,13 @@
 "use client";
 import { Button } from "./ui/button";
-import { Calendar, Wifi, Search, ChevronDown, ChevronRight, Plus } from "lucide-react";
+import {
+  Calendar,
+  Wifi,
+  Search,
+  ChevronDown,
+  ChevronRight,
+  Plus,
+} from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -13,24 +20,35 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "./ui/sidebar";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "./ui/collapsible";
 import { feedsTable, sourcesTable } from "@/db/schema";
 import { memo, ReactNode, Suspense, use, useEffect, useState } from "react";
 import { Skeleton } from "./ui/skeleton";
 import Link from "next/link";
 import { authClient, Session } from "@/lib/auth-client";
-import { InferSelectModel } from "drizzle-orm";
-import type { getFeeds } from "@/lib/Feeds";
+import type { getFeeds as getFeedsType } from "@/lib/Feeds";
 import { Dialog, DialogContent, DialogFooter, DialogHeader } from "./ui/dialog";
 import { DialogTitle, DialogTrigger } from "@radix-ui/react-dialog";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import {
+  useMutation,
+  useMutationState,
+  useQuery,
+  useQueryClient,
+  useSuspenseQuery,
+} from "@tanstack/react-query";
+
+type FeedsResults = NonNullable<Awaited<ReturnType<typeof getFeedsType>>>;
 
 const getFeeds = async () => {
   const res = await fetch("/api/feed");
   const data = await res.json();
-  return data;
+  return data as FeedsResults;
 };
 
 function MainSidebar() {
@@ -38,16 +56,22 @@ function MainSidebar() {
   const { data: session } = authClient.useSession();
   console.log("rendering sidebar");
   const { data, isLoading } = useQuery({
-    queryKey: ["feed"],
+    queryKey: ["feeds"],
     queryFn: getFeeds,
   });
 
   return (
     <Sidebar collapsible="icon" className="transition-all">
-      <SidebarHeader className={`flex-row ${open ? "justify-between" : "justify-end"}`}>
+      <SidebarHeader
+        className={`flex-row ${open ? "justify-between" : "justify-end"}`}
+      >
         {open && (
           <Button variant="ghost" className="flex-1" asChild>
-            {session?.user ? <span>{session.user.name}</span> : <Link href="/auth">Login</Link>}
+            {session?.user ? (
+              <span>{session.user.name}</span>
+            ) : (
+              <Link href="/auth">Login</Link>
+            )}
           </Button>
         )}
         <SidebarTrigger />
@@ -84,7 +108,9 @@ function MainSidebar() {
                   {isLoading ? (
                     <Skeleton className="h-9 px-4 py-2" />
                   ) : (
-                    data?.map((feed) => <Feeds key={feed.id} feed={feed} />)
+                    data?.map((feed) => (
+                      <Feeds key={feed.id + feed.name} feed={feed} />
+                    ))
                   )}
                 </SidebarMenuItem>
               </SidebarMenu>
@@ -96,8 +122,15 @@ function MainSidebar() {
   );
 }
 
-function Feeds({ feed }: { feed: NonNullable<Awaited<ReturnType<typeof getFeeds>>>[number] }) {
+function Feeds({ feed }: { feed: FeedsResults[number] }) {
   const [open, setOpen] = useState<boolean>();
+
+  const isOptimistic = feed.id === "";
+
+  if (isOptimistic) {
+    return <Skeleton className="h-9 px-4 py-2" />;
+  }
+
   return (
     <Collapsible onOpenChange={(open) => setOpen(open)}>
       <Button className="w-full justify-start p-0" variant="ghost" asChild>
@@ -124,7 +157,9 @@ function Feeds({ feed }: { feed: NonNullable<Awaited<ReturnType<typeof getFeeds>
               className="text-sm w-full justify-start"
               asChild
             >
-              <Link href={`/feed/${feed.id}/source/${source.id}`}>{source.name}</Link>
+              <Link href={`/feed/${feed.id}/source/${source.id}`}>
+                {source.name}
+              </Link>
             </Button>
           );
         })}
@@ -134,19 +169,50 @@ function Feeds({ feed }: { feed: NonNullable<Awaited<ReturnType<typeof getFeeds>
 }
 
 function NewFeed({ children }: { children: ReactNode }) {
-  const [feedName, setFeedName] = useState("");
   const queryClient = useQueryClient();
+  const { data: session } = authClient.useSession();
 
   const mutation = useMutation({
-    mutationFn: ({ feedName }: { feedName: string }) => {
+    mutationFn: async ({ feedName }: { feedName: string }) => {
       return fetch("/api/feed", {
         method: "post",
         body: JSON.stringify({ feedName }),
       });
     },
 
-    onSuccess(data, variables, onMutateResult, context) {},
+    mutationKey: ["addFeed"],
+
+    async onMutate(newFeed, context) {
+      await context.client.cancelQueries({ queryKey: ["feeds"] });
+      const previousFeeds = context.client.getQueryData(["feeds"]);
+
+      context.client.setQueryData<FeedsResults>(["feeds"], (old) => [
+        ...(old || []),
+        {
+          id: "",
+          name: newFeed.feedName,
+          userId: session?.user.id || "",
+          feedsToSources: [],
+        },
+      ]);
+      return { previousFeeds };
+    },
+
+    onError(_error, _variables, onMutateResult, context) {
+      context.client.setQueryData(["todos"], onMutateResult?.previousFeeds);
+    },
+
+    onSettled() {
+      queryClient.invalidateQueries({ queryKey: ["feeds"] });
+    },
   });
+
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const feedName = formData.get("feedName")?.toString() ?? "";
+    mutation.mutate({ feedName });
+  }
 
   if (mutation.isPending) return <div>Loading ...</div>;
 
@@ -154,22 +220,18 @@ function NewFeed({ children }: { children: ReactNode }) {
     <Dialog>
       {children}
       <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Create a new feed</DialogTitle>
-        </DialogHeader>
-        <div>
-          <Label htmlFor="feedName">Feed name</Label>
-          <Input id="feedName" type="text" onChange={(e) => setFeedName(e.target.value)} />
-        </div>
-        <DialogFooter>
-          <Button
-            onClick={() => {
-              mutation.mutate({ feedName });
-            }}
-          >
-            Create
-          </Button>
-        </DialogFooter>
+        <form onSubmit={handleSubmit}>
+          <DialogHeader>
+            <DialogTitle>Create a new feed</DialogTitle>
+          </DialogHeader>
+          <div>
+            <Label htmlFor="feedName">Feed name</Label>
+            <Input id="feedName" name="feedName" type="text" />
+          </div>
+          <DialogFooter>
+            <Button type="submit">Create</Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );
